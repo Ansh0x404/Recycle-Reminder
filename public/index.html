@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Garbage Collection Calendar</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="manifest" href="manifest.json" />
+    <!-- <script src="script.js"></script> -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <script>
+      window.addEventListener("load", () => {
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", () => {
+            // Register the service worker after the page has loaded
+            navigator.serviceWorker
+              .register("service-worker.js")
+              .then((registration) => {
+                console.log("Service Worker registered with scope:", registration.scope);
+              })
+              .catch((error) => {
+                console.log("Service Worker registration failed:", error);
+              });
+          });
+        }
+      });
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  </head>
+
+  <body>
+    <h1>Garbage collection Calendar</h1>
+
+    <div id="main">
+      <div>
+        <ul id="favAddressButtons"></ul>
+        <label for="address">Enter your address here: </label>
+        <input type="text" id="address" name="address" value="101 A" />
+        <!-- <input type="text" id="address" name="address" onkeydown="getAddress()" ; /> -->
+        <button id="searchButton" onclick="getAddress()">Search</button>
+      </div>
+      <div>
+        <p id="addressButtons"></p>
+        <p id="pickupDates"></p>
+      </div>
+      <div id="favButtonDiv"></div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>

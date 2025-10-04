@@ -1,0 +1,24 @@
+{
+  "name": "my-pwa-proxy-app",
+  "version": "1.0.0",
+  "description": "A PWA with a custom proxy server for safe and integrated API requests.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "http-proxy-middleware": "^3.0.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "keywords": [
+    "PWA",
+    "proxy",
+    "node",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC"
+}

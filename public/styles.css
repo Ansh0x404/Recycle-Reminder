@@ -1,0 +1,35 @@
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: hsl(0, 0%, 9%);
+  color: hsl(0, 0%, 92%);
+}
+
+h1 {
+  text-align: center;
+}
+
+#dropDown{
+  list-style-type: none;;
+  padding: 5px;
+  border-radius: 12px;
+  text-align: center;
+  display:list-item;
+  font-family: Arial, Helvetica, sans-serif;
+  /* cursor: pointer; */
+}  
+
+ #main {
+  margin-top: 10%;
+  padding: 15px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 300px;
+  height: 400px;
+  border: 2px double hsl(120, 51%, 55%);
+  border-radius: 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+}
