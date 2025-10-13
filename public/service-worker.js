@@ -1,23 +1,20 @@
+// Cache assets for offline use
 self.addEventListener("install", (event) => {
-  //console.log('Service Worker installing...');
-  // You can cache assets here
   event.waitUntil(
     caches.open("v1").then((cache) => {
-      //console.log('Service Worker caching files');
       return cache.addAll(["/index.html", "/styles.css", "/script.js", "/icon.png", "/manifest.json"]);
     })
   );
 });
 
+// Clean up old caches
 self.addEventListener("activate", (event) => {
-  //console.log('Service Worker installing...');
-  // You can cache assets here
-  const cwl = ["v1"];
+  const cacheWhiteList = ["v1"];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (!cwl.includes(cacheName)) {
+          if (!cacheWhiteList.includes(cacheName)) {
             return caches.delete(cacheName);
           }
         })

@@ -1,49 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Garbage Collection Calendar</title>
-    <link rel="stylesheet" href="styles.css" />
+    <meta name="description" content="Track your garbage collection schedule with notifications" />
+    <meta name="theme-color" content="#1b5e20" />
+
+    <!-- PWA Configuration -->
     <link rel="manifest" href="manifest.json" />
-    <!-- <script src="script.js"></script> -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css" />
+
+    <!-- Service Worker Registration -->
     <script>
-      window.addEventListener("load", () => {
-        if ("serviceWorker" in navigator) {
-          window.addEventListener("load", () => {
-            // Register the service worker after the page has loaded
-            navigator.serviceWorker
-              .register("service-worker.js")
-              .then((registration) => {
-                console.log("Service Worker registered with scope:", registration.scope);
-              })
-              .catch((error) => {
-                console.log("Service Worker registration failed:", error);
-              });
-          });
-        }
-      });
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("service-worker.js")
+            .then((registration) => {
+              console.log("Service Worker registered with scope:", registration.scope);
+            })
+            .catch((error) => {
+              console.log("Service Worker registration failed:", error);
+            });
+        });
+      }
     </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
 
   <body>
-    <h1>Garbage collection Calendar</h1>
+    <!-- Header Section -->
+    <header class="app-header">
+      <div class="container">
+        <div class="header-content">
+          <div class="logo">
+            <span class="logo-icon">♻️</span>
+            <h1>Garbage Collection Calendar</h1>
+          </div>
+        </div>
+      </div>
+    </header>
 
-    <div id="main">
-      <div>
-        <ul id="favAddressButtons"></ul>
-        <label for="address">Enter your address here: </label>
-        <input type="text" id="address" name="address" value="101 A" />
-        <!-- <input type="text" id="address" name="address" onkeydown="getAddress()" ; /> -->
-        <button id="searchButton" onclick="getAddress()">Search</button>
+    <!-- Main Content -->
+    <main class="app-main">
+      <div class="container">
+        <!-- Control Panel -->
+        <div id="main" class="main-card">
+          <!-- Action Buttons Container -->
+          <div id="actionButtons" class="action-buttons"></div>
+
+          <!-- Favorites Section -->
+          <section class="favorites-section">
+            <h2 class="section-title">Saved Addresses</h2>
+            <ul id="favAddressButtons" class="favorites-list"></ul>
+          </section>
+
+          <!-- Search Section -->
+          <section class="search-section">
+            <h2 class="section-title">Find Your Address</h2>
+            <div class="search-container">
+              <label for="address" class="search-label">Enter your address</label>
+              <div class="input-group">
+                <input type="text" id="address" name="address" placeholder="e.g., 123 Main Street" class="search-input" autocomplete="street-address" />
+                <button id="searchButton" class="search-button" onclick="getAddress()">
+                  <span class="button-icon">🔍</span>
+                  <span class="button-text">Search</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Results Section -->
+          <section class="results-section">
+            <div id="addressButtons" class="address-results"></div>
+            <div id="pickupDates" class="pickup-dates"></div>
+          </section>
+
+          <!-- Save Button Container -->
+          <div id="favButtonDiv" class="save-container"></div>
+        </div>
       </div>
-      <div>
-        <p id="addressButtons"></p>
-        <p id="pickupDates"></p>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="container">
+        <p>&copy; 2025 Garbage Collection Calendar | Stay Updated</p>
       </div>
-      <div id="favButtonDiv"></div>
-    </div>
+    </footer>
+
+    <!-- Main Script -->
     <script src="script.js"></script>
   </body>
 </html>

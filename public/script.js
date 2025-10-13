@@ -1,44 +1,267 @@
-var formData = new FormData();
+// App state management
+const APP_STATE = {
+  isLoading: false,
+  connectionStatus: navigator.onLine,
+};
+
 const proxy = "/api";
 var addressArray = JSON.parse(localStorage.getItem("addressArray")) || [];
 
 //DOM Elements
 let unorderButtons = document.getElementById("favAddressButtons");
+const pickupDatesElement = document.getElementById("pickupDates");
+const addressInput = document.getElementById("address");
+const addressButtonsElement = document.getElementById("addressButtons");
+const favButtonDiv = document.getElementById("favButtonDiv");
 
-addressArray.forEach((address) => {
-  const addressButton = document.createElement("button");
-  addressButton.setAttribute("value", address.address);
-  addressButton.innerText = address.address;
-  //addressButton.addEventListener("click", displayDates(address.datesArray));
-  addressButton.addEventListener("click", () => {
-    let pickupDates = document.getElementById("pickupDates");
-    const garbageDate = address.datesArray.garbageDateArray.find((date) => Date.parse(date) > Date.now());
-    const recycleDate = address.datesArray.recycleDateArray.find((date) => Date.parse(date) > Date.now());
-    const specialDate = address.datesArray.specialDateArray.find((date) => Date.parse(date) > Date.now());
-    const yardDate = address.datesArray.yardDateArray.find((date) => Date.parse(date) > Date.now());
-
-    pickupDates.innerHTML = `<h4>Garbage Date: ${garbageDate}</h4><h4>Recycle Date: ${recycleDate}</h4><h4>special Date: ${specialDate}</h4><h4>yard Date: ${yardDate}</h4>`;
-  });
-  const buttonList = document.createElement("li");
-  buttonList.appendChild(addressButton);
-
-  unorderButtons.append(buttonList);
+// Initialize application
+document.addEventListener("DOMContentLoaded", () => {
+  initializeUI();
+  setupEventListeners();
+  renderFavoriteAddresses();
+  updateConnectionStatus();
 });
-// function displayDates(datesArray) {
-//   let pickupDates = document.getElementById("pickupDates");
-//   const garbageDate = datesArray.garbageDateArray[0];
-//   const recycleDate = datesArray.recycleDateArray[0];
-//   const specialDate = datesArray.specialDateArray[0];
-//   const yardDate = datesArray.yardDateArray[0];
 
-//   pickupDates.innerHTML = `<h4>Garbage Date: ${garbageDate}</h4><h4>Recycle Date: ${recycleDate}</h4><h4>special Date: ${specialDate}</h4><h4>yard Date: ${yardDate}</h4>`;
-// }
+// Setup core UI elements
+function initializeUI() {
+  // Create connection status indicator
+  const statusElement = document.createElement("div");
+  statusElement.id = "connectionStatus";
+  document.body.prepend(statusElement);
+
+  // Get the action buttons container
+  const actionButtonsContainer = document.getElementById("actionButtons");
+
+  // Create notifications permission button
+  const notificationButton = document.createElement("button");
+  notificationButton.id = "notificationButton";
+
+  // Check if notifications are already enabled
+  if (Notification.permission === "granted") {
+    notificationButton.innerHTML = "Notifications Enabled";
+    notificationButton.classList.add("notification-enabled");
+  } else {
+    notificationButton.innerHTML = "Enable Notifications";
+  }
+
+  notificationButton.addEventListener("click", requestNotificationPermission);
+  actionButtonsContainer.appendChild(notificationButton);
+}
+
+// Request notification permission
+function requestNotificationPermission() {
+  if ("Notification" in window) {
+    Notification.requestPermission().then((permission) => {
+      if (permission === "granted") {
+        // Store permission in localStorage
+        localStorage.setItem("notificationPermission", "granted");
+        document.getElementById("notificationButton").innerHTML = "Notifications Enabled";
+        document.getElementById("notificationButton").classList.add("notification-enabled");
+
+        // Schedule notifications for all saved addresses
+        addressArray.forEach((address) => {
+          scheduleNotificationsForAddress(address);
+        });
+      } else if (permission === "denied") {
+        document.getElementById("notificationButton").innerHTML = "Notifications Denied";
+      }
+    });
+  }
+}
+
+// Schedule notifications for a specific address
+function scheduleNotificationsForAddress(addressObj) {
+  if (Notification.permission !== "granted") return;
+
+  const dates = addressObj.datesArray;
+  const address = addressObj.address;
+
+  // Schedule notifications for each collection type
+  scheduleNotification("Garbage", dates.garbageDateArray[0], address);
+  scheduleNotification("Recycling", dates.recycleDateArray[0], address);
+  scheduleNotification("Special", dates.specialDateArray[0], address);
+  scheduleNotification("Yard Waste", dates.yardDateArray[0], address);
+}
+
+// Schedule a single notification
+function scheduleNotification(type, dateString, address) {
+  if (!dateString || dateString === "No upcoming date") return;
+
+  const notificationId = `${type}-${address}-${dateString}`.replace(/\s+/g, "-");
+  const date = new Date(dateString);
+
+  // Calculate notification time (6pm the day before)
+  const notificationDate = new Date(date);
+  notificationDate.setDate(notificationDate.getDate() - 1); // Day before
+  notificationDate.setHours(18, 0, 0, 0); // At 6:00 PM
+
+  // Only schedule if it's in the future
+  if (notificationDate > new Date()) {
+    // Register the notification with the service worker
+    if ("serviceWorker" in navigator && "PushManager" in window) {
+      const notificationData = {
+        id: notificationId,
+        title: `${type} Collection Tomorrow`,
+        body: `Your ${type.toLowerCase()} at ${address} will be collected tomorrow`,
+        icon: "/icon.png",
+        timestamp: notificationDate.getTime(),
+      };
+
+      // Send to the service worker to schedule
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.active.postMessage({
+          action: "scheduleNotification",
+          notification: notificationData,
+        });
+      });
+    }
+  }
+}
+
+// Setup event listeners
+function setupEventListeners() {
+  // Connection status listeners
+  window.addEventListener("online", updateConnectionStatus);
+  window.addEventListener("offline", updateConnectionStatus);
+
+  // Search on enter key
+  addressInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      getAddress();
+    }
+  });
+}
+
+// Update and display connection status
+function updateConnectionStatus() {
+  APP_STATE.connectionStatus = navigator.onLine;
+  const statusElement = document.getElementById("connectionStatus");
+
+  if (APP_STATE.connectionStatus) {
+    statusElement.innerText = "🟢 Online";
+    statusElement.className = "online-status";
+  } else {
+    statusElement.innerText = "🔴 Offline";
+    statusElement.className = "offline-status";
+  }
+}
+
+function renderFavoriteAddresses() {
+  unorderButtons.innerHTML = "";
+
+  if (addressArray.length === 0) {
+    const noFavMessage = document.createElement("p");
+    noFavMessage.innerText = "No favorites saved. Search for an address and add it to favorites.";
+    noFavMessage.className = "fav-message";
+    unorderButtons.appendChild(noFavMessage);
+    return;
+  }
+
+  addressArray.forEach((address, index) => {
+    const buttonList = document.createElement("li");
+    buttonList.className = "fav-item";
+
+    //create address button
+    const addressButton = document.createElement("button");
+    addressButton.setAttribute("value", address.address);
+    addressButton.innerText = address.address;
+    addressButton.className = "address-btn";
+    addressButton.addEventListener("click", () => displayDates(address.datesArray));
+
+    // Create delete button
+    const deleteButton = document.createElement("button");
+    deleteButton.innerText = "X";
+    deleteButton.className = "delete-btn";
+    deleteButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeAddress(index);
+    });
+
+    buttonList.appendChild(addressButton);
+    buttonList.appendChild(deleteButton);
+    unorderButtons.append(buttonList);
+  });
+}
+
+// Remove an address from favorites
+function removeAddress(index) {
+  addressArray.splice(index, 1);
+  localStorage.setItem("addressArray", JSON.stringify(addressArray));
+  renderFavoriteAddresses();
+}
+
+function displayDates() {
+  const garbageDate = address.datesArray.garbageDateArray.find((date) => Date.parse(date) > Date.now()) || "No upcoming date";
+  const recycleDate = address.datesArray.recycleDateArray.find((date) => Date.parse(date) > Date.now()) || "No upcoming date";
+  const specialDate = address.datesArray.specialDateArray.find((date) => Date.parse(date) > Date.now()) || "No upcoming date";
+  const yardDate = address.datesArray.yardDateArray.find((date) => Date.parse(date) > Date.now()) || "No upcoming date";
+
+  const formattedGarbageDate = formatDate(garbageDate);
+  const formattedRecycleDate = formatDate(recycleDate);
+  const formattedSpecialDate = formatDate(specialDate);
+  const formattedYardDate = formatDate(yardDate);
+
+  pickupDatesElement.innerHTML = `
+    <h3>Collection Schedule for ${address.address}</h3>
+    <div class="collection-item garbage">
+      <h4>Garbage: ${formattedGarbageDate}</h4>
+      <div class="days-remaining">${getDaysRemaining(garbageDate)}</div>
+    </div>
+    <div class="collection-item recycle">
+      <h4>Recycling: ${formattedRecycleDate}</h4>
+      <div class="days-remaining">${getDaysRemaining(recycleDate)}</div>
+    </div>
+    <div class="collection-item special">
+      <h4>Special: ${formattedSpecialDate}</h4>
+      <div class="days-remaining">${getDaysRemaining(specialDate)}</div>
+    </div>
+    <div class="collection-item yard">
+      <h4>Yard Waste: ${formattedYardDate}</h4>
+      <div class="days-remaining">${getDaysRemaining(yardDate)}</div>
+    </div>
+  `;
+}
+
+// Format date for display
+function formatDate(dateString) {
+  if (!dateString || dateString === "No upcoming date") return dateString;
+
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+// Calculate and format days remaining
+function getDaysRemaining(dateString) {
+  if (!dateString || dateString === "No upcoming date") return "";
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = date - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return '<span class="today">Today!</span>';
+  if (diffDays === 1) return '<span class="tomorrow">Tomorrow!</span>';
+  return `<span class="days">${diffDays} days</span>`;
+}
 
 function getAddress() {
-  let userInput = document.getElementById("address");
+  if (!APP_STATE.connectionStatus) {
+    showOfflineMessage(addressButtonsElement);
+    return;
+  }
+
+  const userInput = addressInput.value.trim();
+  if (!userInput) return;
+
+  showLoading("addressButtons");
 
   let desti = "/ZoneFinder/Map/GetAddress?query=";
-  let url = proxy + desti + userInput.value;
+  let url = proxy + desti + encodeURIComponent(userInput);
 
   fetch(url)
     .then((response) => {
@@ -48,30 +271,27 @@ function getAddress() {
       return response.json();
     })
     .then((data) => {
+      if (data.length === 0) {
+        addressButtonsElement.innerHTML = "<p>No addresses found. Please try a different search.</p>";
+        return;
+      }
+
       let unorderlist = document.createElement("ul");
       unorderlist.id = "dropDown";
+      unorderlist.className = "address-dropdown";
 
       data.forEach((element) => {
         const orderList = document.createElement("li");
         const button = document.createElement("button");
         button.setAttribute("value", element.DisplayName);
-        button.setAttribute("onclick", "setAddress(this.value)");
         button.innerText = element.DisplayName;
+        button.addEventListener("click", () => setAddress(element.DisplayName));
         orderList.appendChild(button);
         unorderlist.append(orderList);
       });
 
-      const demo1 = document.getElementById("addressButtons");
-      demo1.appendChild(unorderlist);
-
-      // console.log(data);
-      // var dataList = "<ul id='dropDown'>";
-      // for (i = 0; i < data.length; i++) {
-      //   dataList += "<li><button value='" + data[i].DisplayName + "' onclick='setAddress(this.value)'>" + data[i].DisplayName + "</button></li>";
-      // }
-      // dataList += "</ul>";
-      // //console.log(dataList);
-      // document.getElementById("demo1").innerHTML = dataList;
+      addressButtonsElement.innerHTML = "";
+      addressButtonsElement.appendChild(unorderlist);
     })
     .catch((error) => {
       console.error("Error: ", error);
@@ -79,20 +299,25 @@ function getAddress() {
 }
 
 function setAddress(buttonValue) {
-  document.getElementById("address").value = buttonValue;
+  addressInput.value = buttonValue;
 
-  let addressButtons = document.getElementById("dropDown");
+  const addressButtons = document.getElementById("dropDown");
 
   //addressButtons.style.display = "none";
-  addressButtons.remove();
+  if (addressButtons) addressButtons.remove();
   getAddressInfo();
 }
 
 function getAddressInfo() {
-  let userAddress = document.getElementById("address");
+  if (!APP_STATE.connectionStatus) {
+    showOfflineMessage(pickupDatesElement);
+    return;
+  }
 
-  let desti2 = "/ZoneFinder/Map/GetSearch?searchString=";
-  let url2 = proxy + desti2 + userAddress.value;
+  showLoading("pickupDates");
+  const userAddress = addressInput.value;
+  const desti2 = "/ZoneFinder/Map/GetSearch?searchString=";
+  const url2 = proxy + desti2 + encodeURIComponent(userAddress);
 
   fetch(url2)
     .then((response) => {
@@ -102,24 +327,31 @@ function getAddressInfo() {
       return response.json();
     })
     .then((data) => {
-      //console.log("Data " + data);
-      var featureSet = JSON.parse(data);
-      let address = featureSet.features[0].properties;
-      // var formData = new FormData();
+      const featureSet = JSON.parse(data);
+
+      if (!featureSet.features || featureSet.features.length === 0) {
+        hideLoading("pickupDates");
+        pickupDatesElement.innerHTML = "<p>Could not find address information. Please try a different address.</p>";
+        return;
+      }
+
+      const address = featureSet.features[0].properties;
+      const formData = new FormData();
 
       formData.set("StreetNo", address.MunicipalNumber);
       formData.set("StreetName", address.StreetName);
       formData.set("StreetType", address.StreetType);
       formData.set("UnitNumber", address.UnitNumber);
       formData.set("StreetNoQualifier", "");
+
       getCalendarData(formData);
     })
     .catch((error) => {
+      hideLoading("pickupDates");
       console.error("Error: ", error);
     });
-  //document.getElementById("demo1").innerHTML = "<button id='pickupDate' onclick='getCalendarData()'>View Next Pickup Date</button>";
-  //getCalendarData(formData);
 }
+
 function getCalendarData(formData) {
   let desti3 = "/ZoneFinder/ZoneLocator/SearchZoneLocator";
   let url3 = proxy + desti3;
@@ -129,173 +361,230 @@ function getCalendarData(formData) {
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
-      //console.log("response type " + typeof response.json());
       return response.text();
     })
     .then((data) => {
-      //console.log(data);
       processData(data);
     })
     .catch((error) => {
+      hideLoading("pickupDates");
       console.error("Error: ", error);
     });
 }
+
 function processData(dataString) {
-  let usrAddr = document.getElementById("address").value.toUpperCase();
-  //console.log("usrAddr: " + usrAddr);
-  let addressHoldString;
-  const stringArray = dataString.split("<tr>");
-  for (let i = 0; i < stringArray.length; i++) {
-    //console.log(stringArray[i] + " ");
-    if (stringArray[i].includes(usrAddr)) {
-      // console.log(stringArray[i] + " ");
-      addressHoldString = stringArray[i];
-    }
-  }
-  const stringArray2 = addressHoldString.split(" ");
-  let calendarLink;
-  for (let i = 0; i < stringArray2.length; i++) {
-    if (stringArray2[i].includes("ProcessCalendarRequest")) {
-      //console.log(stringArray2[i]);
-      calendarLink = stringArray2[i].split('"')[1].replace(/&amp;/g, "&");
-    }
-  }
+  try {
+    let usrAddr = addressInput.value.toUpperCase();
+    let addressHoldString;
+    const stringArray = dataString.split("<tr>");
 
-  let url4 = proxy + calendarLink;
-
-  fetch(url4)
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
+    for (let i = 0; i < stringArray.length; i++) {
+      if (stringArray[i].includes(usrAddr)) {
+        addressHoldString = stringArray[i];
       }
-      return response.text();
-    })
-    .then((data) => {
-      //console.log("Calendar data: " + data);
-      getPickupDates(data);
-    })
-    .catch((error) => {
-      console.error("Error: ", error);
-    });
+    }
+
+    if (!addressHoldString) {
+      hideLoading("pickupDates");
+      pickupDatesElement.innerHTML = "<p>Could not find collection data for this address.</p>";
+      return;
+    }
+
+    const stringArray2 = addressHoldString.split(" ");
+    let calendarLink;
+    for (let i = 0; i < stringArray2.length; i++) {
+      if (stringArray2[i].includes("ProcessCalendarRequest")) {
+        calendarLink = stringArray2[i].split('"')[1].replace(/&amp;/g, "&");
+      }
+    }
+
+    if (!calendarLink) {
+      hideLoading("pickupDates");
+      pickupDatesElement.innerHTML = "<p>Could not find collection calendar for this address.</p>";
+      return;
+    }
+
+    const url4 = proxy + calendarLink;
+
+    fetch(url4)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.text();
+      })
+      .then((data) => {
+        getPickupDates(data);
+      })
+      .catch((error) => {
+        hideLoading("pickupDates");
+        console.error("Error: ", error);
+      });
+  } catch (error) {
+    hideLoading("pickupDates");
+    console.error("Error: ", error);
+  }
 }
 
 function getPickupDates(data) {
   const dateString2 = data.match(/var model = ([\s\S]*?);\s+var eventData/)[1];
   const pickupDateJson = JSON.parse(dateString2);
 
-  let garbageDateArray = new Array();
-  let garbageDiff = new Array();
+  //extract the dates from the data
+  const dates = extractDates(pickupDateJson);
 
-  let recycleDateArray = new Array();
-  let recycleDiff = new Array();
+  hideLoading("pickupDates");
 
+  // Display the dates
+  displayDates(dates);
+
+  showSaveButton(dates);
+}
+
+// Extract dates from pickup data
+function extractDates(pickupDateJson) {
+  const dates = {
+    garbageDateArray: [],
+    recycleDateArray: [],
+    specialDateArray: [],
+    yardDateArray: [],
+  };
+
+  // Extract regular pickup dates
   pickupDateJson.PickUpDateList.forEach((element) => {
-    if (element.CollectionTypeDisplayName == "Garbage" || element.CollectionTypeCode == "10") {
-      if (Date.parse(element.FormattedLongSpecialPickUpDate) > Date.now()) {
-        garbageDateArray.push(element.FormattedLongSpecialPickUpDate);
-        garbageDiff.push(Date.parse(element.FormattedLongSpecialPickUpDate) - Date.now());
-      }
-    } else if (element.CollectionTypeDisplayName == "Green Bin \u0026 Recycling" || element.CollectionTypeCode == "20") {
-      if (Date.parse(element.FormattedLongSpecialPickUpDate) > Date.now()) {
-        recycleDateArray.push(element.FormattedLongSpecialPickUpDate);
-        recycleDiff.push(Date.parse(element.FormattedLongSpecialPickUpDate) - Date.now());
+    const pickupDate = element.FormattedLongSpecialPickUpDate;
+    const pickupTimestamp = Date.parse(pickupDate);
+
+    if (pickupTimestamp > Date.now()) {
+      if (element.CollectionTypeDisplayName === "Garbage" || element.CollectionTypeCode === "10") {
+        dates.garbageDateArray.push(pickupDate);
+      } else if (element.CollectionTypeDisplayName === "Green Bin \u0026 Recycling" || element.CollectionTypeCode === "20") {
+        dates.recycleDateArray.push(pickupDate);
       }
     }
   });
 
-  let minGarbageDiff = garbageDiff[0];
-  let minGarbageDiffIndex = 0;
-  for (let i = 0; i < garbageDiff.length; i++) {
-    if (garbageDiff[i] < minGarbageDiff) {
-      minGarbageDiff = garbageDiff[i];
-      minGarbageDiffIndex = i;
-    }
-  }
-
-  let minRecycleDiff = recycleDiff[0];
-  let minRecycleDiffIndex = 0;
-  for (let i = 0; i < recycleDiff.length; i++) {
-    if (recycleDiff[i] < minRecycleDiff) {
-      minRecycleDiff = recycleDiff[i];
-      minRecycleDiffIndex = i;
-    }
-  }
-
-  let yardDateArray = new Array();
-  let yardDiff = new Array();
-
-  let specialDateArray = new Array();
-  let specialDiff = new Array();
-
+  // Extract special pickup dates
   pickupDateJson.SpecialPickUpList.forEach((element) => {
-    if (element.CollectionTypeDisplayName == "3-Container Exemption garbage collection" || element.CollectionTypeCode == "11") {
-      if (Date.parse(element.FormattedLongSpecialPickUpDate) > Date.now()) {
-        specialDateArray.push(element.FormattedLongSpecialPickUpDate);
-        specialDiff.push(Date.parse(element.FormattedLongSpecialPickUpDate) - Date.now());
-      }
-    } else if (element.CollectionTypeDisplayName == "Yard Waste collection wee" || element.CollectionTypeCode == "30") {
-      if (Date.parse(element.FormattedLongSpecialPickUpDate) > Date.now()) {
-        yardDateArray.push(element.FormattedLongSpecialPickUpDate);
-        yardDiff.push(Date.parse(element.FormattedLongSpecialPickUpDate) - Date.now());
+    const pickupDate = element.FormattedLongSpecialPickUpDate;
+    const pickupTimestamp = Date.parse(pickupDate);
+
+    if (pickupTimestamp > Date.now()) {
+      if (element.CollectionTypeDisplayName === "3-Container Exemption garbage collection" || element.CollectionTypeCode === "11") {
+        dates.specialDateArray.push(pickupDate);
+      } else if (element.CollectionTypeDisplayName === "Yard Waste collection wee" || element.CollectionTypeCode === "30") {
+        dates.yardDateArray.push(pickupDate);
       }
     }
   });
 
-  let minSpecialDiff = specialDiff[0];
-  let minSpecialDiffIndex = 0;
-  for (let i = 0; i < specialDiff.length; i++) {
-    if (specialDiff[i] < minSpecialDiff) {
-      minSpecialDiff = specialDiff[i];
-      minSpecialDiffIndex = i;
-    }
-  }
+  // Sort all date arrays by timestamp (ascending)
+  dates.garbageDateArray.sort((a, b) => Date.parse(a) - Date.parse(b));
+  dates.recycleDateArray.sort((a, b) => Date.parse(a) - Date.parse(b));
+  dates.specialDateArray.sort((a, b) => Date.parse(a) - Date.parse(b));
+  dates.yardDateArray.sort((a, b) => Date.parse(a) - Date.parse(b));
 
-  let minYardDiff = yardDiff[0];
-  let minYardDiffIndex = 0;
-  for (let i = 0; i < yardDiff.length; i++) {
-    if (yardDiff[i] < minYardDiff) {
-      minYardDiff = yardDiff[i];
-      minYardDiffIndex = i;
-    }
-  }
+  return dates;
+}
 
-  let nextGarbageDate = document.createElement("h4");
-  nextGarbageDate.innerText = "Next Garbage Date: " + garbageDateArray[minGarbageDiffIndex];
+function displayDates(dates) {
+  const garbageDate = dates.garbageDateArray[0] || "No upcoming date";
+  const recycleDate = dates.recycleDateArray[0] || "No upcoming date";
+  const specialDate = dates.specialDateArray[0] || "No upcoming date";
+  const yardDate = dates.yardDateArray[0] || "No upcoming date";
 
-  let nextRecycleDate = document.createElement("h4");
-  nextRecycleDate.innerText = "Next Recycle Date: " + recycleDateArray[minRecycleDiffIndex];
+  const formattedGarbageDate = formatDate(garbageDate);
+  const formattedRecycleDate = formatDate(recycleDate);
+  const formattedSpecialDate = formatDate(specialDate);
+  const formattedYardDate = formatDate(yardDate);
 
-  let nextYardDate = document.createElement("h4");
-  nextYardDate.innerText = "Next Yard Date: " + yardDateArray[minYardDiffIndex];
+  pickupDatesElement.innerHTML = "";
 
-  let nextSpecialDate = document.createElement("h4");
-  nextSpecialDate.innerText = "Next Special Date: " + specialDateArray[minSpecialDiffIndex];
+  pickupDatesElement.innerHTML = `
+    <h3>Collection Schedule</h3>
+    <div class="collection-item garbage">
+      <h4>Garbage: ${formattedGarbageDate}</h4>
+      <div class="days-remaining">${getDaysRemaining(garbageDate)}</div>
+    </div>
+    <div class="collection-item recycle">
+      <h4>Recycling: ${formattedRecycleDate}</h4>
+      <div class="days-remaining">${getDaysRemaining(recycleDate)}</div>
+    </div>
+    <div class="collection-item special">
+      <h4>Special: ${formattedSpecialDate}</h4>
+      <div class="days-remaining">${getDaysRemaining(specialDate)}</div>
+    </div>
+    <div class="collection-item yard">
+      <h4>Yard Waste: ${formattedYardDate}</h4>
+      <div class="days-remaining">${getDaysRemaining(yardDate)}</div>
+    </div>
+  `;
+}
 
-  let demo2 = document.getElementById("pickupDates");
-  demo2.innerText = "";
-  demo2.append(nextGarbageDate);
-  demo2.append(nextRecycleDate);
-  demo2.append(nextYardDate);
-  demo2.append(nextSpecialDate);
+// show the save to favorites button
+function showSaveButton(dates) {
+  const address = addressInput.value;
+  const favButton = document.createElement("button");
+  favButton.className = "save-button";
 
-  let address = document.getElementById("address");
-
-  let pickupDateObject = { garbageDateArray: garbageDateArray, recycleDateArray: recycleDateArray, yardDateArray: yardDateArray, specialDateArray: specialDateArray };
-
-  let addressDatesObject = { address: address.value, datesArray: pickupDateObject };
-
-  if (!addressArray.some((obj) => obj.address === addressDatesObject.address)) {
-    addressArray.push(addressDatesObject);
-  }
-
-  let favButton = document.createElement("button");
-  favButton.innerText = "Add to favorites";
+  const isInFavorites = addressArray.some((obj) => obj.address === address);
+  favButton.innerText = isInFavorites ? "Update in favorites" : "Add to favorites";
 
   favButton.addEventListener("click", () => {
+    const existingIndex = addressArray.findIndex((obj) => obj.address === address);
+
+    const addressDatesObject = {
+      address: address,
+      datesArray: dates,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    if (existingIndex === -1) {
+      addressArray.push(addressDatesObject);
+      favButton.innerText = "Added to favorites!";
+    } else {
+      addressArray[existingIndex] = addressDatesObject;
+      favButton.innerText = "Updated in favorites!";
+    }
+
     localStorage.setItem("addressArray", JSON.stringify(addressArray));
+    renderFavoriteAddresses();
+
+    // Schedule notifications for this address if permissions are granted
+    if (Notification.permission === "granted") {
+      scheduleNotificationsForAddress(addressDatesObject);
+    }
+
+    favButton.innerText = "Saved!";
+    favButton.disabled = true;
+    setTimeout(() => {
+      favButton.innerText = "Update in favorites";
+      favButton.disabled = false;
+    }, 1500);
   });
 
-  let div = document.getElementById("favButtonDiv");
-  div.innerHTML = "";
-  div.append(favButton);
+  favButtonDiv.innerHTML = "";
+  favButtonDiv.append(favButton);
+}
+
+// Show offline message
+function showOfflineMessage(element) {
+  element.innerHTML = `
+    <div class="offline-message">
+      <p>You are currently offline. Please connect to the internet to perform this action.</p>
+    </div>
+  `;
+}
+
+// Loading indicator functions
+function showLoading(elementId) {
+  APP_STATE.isLoading = true;
+  const element = document.getElementById(elementId);
+  element.innerHTML = '<div class="loading-spinner"></div>';
+}
+
+function hideLoading(elementId) {
+  APP_STATE.isLoading = false;
+  const element = document.getElementById(elementId);
+  element.innerHTML = "";
 }
