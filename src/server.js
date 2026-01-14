@@ -5,7 +5,9 @@ const { createProxyMiddleware } = require("http-proxy-middleware");
 const path = require("path");
 
 const app = express();
-const HOSTNAME = "192.168.4.45";
+//const HOSTNAME = "192.168.4.45";
+//const HOSTNAME = "localhost";
+const HOSTNAME = "0.0.0.0";
 const PORT = process.env.PORT || 1002;
 
 // Serve static files from the public directory
