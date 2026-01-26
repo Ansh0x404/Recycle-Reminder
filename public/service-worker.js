@@ -1,5 +1,4 @@
 const CACHE_NAME = "garbage-collector-v1";
-const SCHEDULED_NOTIFICATIONS = "scheduled-notifications";
 
 // Assets to cache immediately
 const CORE_ASSETS = ["/", "/index.html", "/styles.css", "/script.js", "/icon.png", "/manifest.json"];
@@ -80,82 +79,36 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Handle messages from the client (main script)
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.action === "scheduleNotification") {
-    const notification = event.data.notification;
-    scheduleNotification(notification);
+// Push event - show notification
+self.addEventListener("push", (event) => {
+  if (event.data) {
+    const data = event.data.json();
+
+    const options = {
+      body: data.body,
+      icon: data.icon || "/icon.png",
+      vibrate: [100, 50, 100],
+      data: {
+        dateOfArrival: Date.now(),
+        primaryKey: 1,
+      },
+      // Actions can be added here
+    };
+
+    event.waitUntil(self.registration.showNotification(data.title, options));
   }
 });
 
-// Store notification data in IndexedDB
-function scheduleNotification(notification) {
-  // Open (or create) the IndexedDB database
-  const dbPromise = indexedDB.open("garbage-notifications", 1);
-
-  dbPromise.onupgradeneeded = function (event) {
-    const db = event.target.result;
-    if (!db.objectStoreNames.contains(SCHEDULED_NOTIFICATIONS)) {
-      db.createObjectStore(SCHEDULED_NOTIFICATIONS, { keyPath: "id" });
-    }
-  };
-
-  dbPromise.onsuccess = function (event) {
-    const db = event.target.result;
-    const tx = db.transaction(SCHEDULED_NOTIFICATIONS, "readwrite");
-    const store = tx.objectStore(SCHEDULED_NOTIFICATIONS);
-
-    // Store the notification
-    store.put(notification);
-
-    // Set up a periodic check for pending notifications
-    //setupPeriodicSync();
-  };
-}
-
-// Check for pending notifications every minute
-// function setupPeriodicSync() {
-//   setInterval(() => {
-//     checkScheduledNotifications();
-//   }, 360000); // Check every minute
-// }
-
-// Check if any notifications need to be shown
-function checkScheduledNotifications() {
-  const now = Date.now();
-
-  // Open the database
-  const dbPromise = indexedDB.open("garbage-notifications", 1);
-
-  dbPromise.onsuccess = function (event) {
-    const db = event.target.result;
-    const tx = db.transaction(SCHEDULED_NOTIFICATIONS, "readwrite");
-    const store = tx.objectStore(SCHEDULED_NOTIFICATIONS);
-
-    // Get all notifications
-    const request = store.getAll();
-
-    request.onsuccess = function () {
-      const notifications = request.result;
-
-      // Check each notification
-      notifications.forEach((notification) => {
-        // If the notification time has passed and it's within the last hour (to avoid duplicate notifications)
-        if (notification.timestamp <= now && now - notification.timestamp < 3600000) {
-          // Show the notification
-          self.registration.showNotification(notification.title, {
-            body: notification.body,
-            icon: notification.icon,
-          });
-
-          // Delete this notification from the store
-          store.delete(notification.id);
-        }
-      });
-    };
-  };
-}
-
-// Initialize the periodic check when service worker starts
-checkScheduledNotifications();
-//setupPeriodicSync();
+// Notification click event - handle notification clicks
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  // Open the app
+  event.waitUntil(
+    clients.matchAll({ type: "window" }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url === "/" && "focus" in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow("/");
+    })
+  );
+});

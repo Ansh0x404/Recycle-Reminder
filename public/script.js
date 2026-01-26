@@ -7,12 +7,24 @@ const APP_STATE = {
 const proxy = "/api";
 var addressArray = JSON.parse(localStorage.getItem("addressArray")) || [];
 
-//DOM Elements
+// DOM Elements
 let unorderButtons = document.getElementById("favAddressButtons");
 const pickupDatesElement = document.getElementById("pickupDates");
 const addressInput = document.getElementById("address");
 const addressButtonsElement = document.getElementById("addressButtons");
 const favButtonDiv = document.getElementById("favButtonDiv");
+
+// Helper function to convert VAPID key
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 // Initialize application
 document.addEventListener("DOMContentLoaded", () => {
@@ -49,73 +61,60 @@ function initializeUI() {
 }
 
 // Request notification permission
-function requestNotificationPermission() {
-  if ("Notification" in window) {
-    Notification.requestPermission().then((permission) => {
-      if (permission === "granted") {
-        // Store permission in localStorage
-        localStorage.setItem("notificationPermission", "granted");
-        document.getElementById("notificationButton").innerHTML = "Notifications Enabled";
-        document.getElementById("notificationButton").classList.add("notification-enabled");
+async function requestNotificationPermission() {
+  if (!("serviceWorker" in navigator)) return;
 
-        // Schedule notifications for all saved addresses
-        addressArray.forEach((address) => {
-          scheduleNotificationsForAddress(address);
-        });
-      } else if (permission === "denied") {
-        document.getElementById("notificationButton").innerHTML = "Notifications Denied";
-      }
-    });
-  }
-}
+  const permission = await Notification.requestPermission();
 
-// Schedule notifications for a specific address
-function scheduleNotificationsForAddress(addressObj) {
-  if (Notification.permission !== "granted") return;
+  if (permission === "granted") {
+    localStorage.setItem("notificationPermission", "granted");
+    document.getElementById("notificationButton").innerHTML = "Notifications Active";
+    document.getElementById("notificationButton").classList.add("notification-enabled");
 
-  const dates = addressObj.datesArray;
-  const address = addressObj.address;
+    try {
+      console.log("Registering for Push Notifications...");
 
-  // Schedule notifications for each collection type
-  scheduleNotification("Garbage", dates.garbageDateArray[0], address);
-  scheduleNotification("Recycling", dates.recycleDateArray[0], address);
-  scheduleNotification("Special", dates.specialDateArray[0], address);
-  scheduleNotification("Yard Waste", dates.yardDateArray[0], address);
-}
+      // Get Public Key from your Server
+      const response = await fetch("/api/vapidPublicKey");
+      const publicKey = await response.text();
 
-// Schedule a single notification
-function scheduleNotification(type, dateString, address) {
-  if (!dateString || dateString === "No upcoming date") return;
-
-  const notificationId = `${type}-${address}-${dateString}`.replace(/\s+/g, "-");
-  const date = new Date(dateString);
-
-  // Calculate notification time (6pm the day before)
-  const notificationDate = new Date(date);
-  notificationDate.setDate(notificationDate.getDate() - 1); // Day before
-  notificationDate.setHours(18, 0, 0, 0); // At 6:00 PM
-
-  // Only schedule if it's in the future
-  if (notificationDate > new Date()) {
-    // Register the notification with the service worker
-    if ("serviceWorker" in navigator && "PushManager" in window) {
-      const notificationData = {
-        id: notificationId,
-        title: `${type} Collection Tomorrow`,
-        body: `Your ${type.toLowerCase()} at ${address} will be collected tomorrow`,
-        icon: "/icon.png",
-        timestamp: notificationDate.getTime(),
-      };
-
-      // Send to the service worker to schedule
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.active.postMessage({
-          action: "scheduleNotification",
-          notification: notificationData,
-        });
+      // Subscribe the browser to the Push Service
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
       });
+
+      console.log("Browser subscribed:", subscription);
+
+      // C. Send this subscription + Current Favorites to your Server
+      await syncFavoritesToServer(subscription);
+    } catch (err) {
+      console.error("Error subscribing to push notifications:", err);
     }
   }
+}
+
+// Sync subscription and address to server
+async function syncFavoritesToServer(subscription) {
+  // We send the whole list of favorites
+  // Map it to a clean structure expected by the server
+  const favoritesPayload = addressArray.map((item) => ({
+    address: item.address,
+    dates: item.datesArray,
+  }));
+
+  await fetch("/api/subscribe", {
+    method: "POST",
+    body: JSON.stringify({
+      subscription: subscription,
+      favorites: favoritesPayload, // Send Array instead of single address
+    }),
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  console.log("Synced all favorites to server.");
 }
 
 // Setup event listeners
@@ -184,42 +183,25 @@ function renderFavoriteAddresses() {
 }
 
 // Remove an address from favorites
-function removeAddress(index) {
+async function removeAddress(index) {
   addressArray.splice(index, 1);
   localStorage.setItem("addressArray", JSON.stringify(addressArray));
   renderFavoriteAddresses();
-}
 
-function displayDates() {
-  const garbageDate = address.datesArray.garbageDateArray.find((date) => Date.parse(date) > Date.now()) || "No upcoming date";
-  const recycleDate = address.datesArray.recycleDateArray.find((date) => Date.parse(date) > Date.now()) || "No upcoming date";
-  const specialDate = address.datesArray.specialDateArray.find((date) => Date.parse(date) > Date.now()) || "No upcoming date";
-  const yardDate = address.datesArray.yardDateArray.find((date) => Date.parse(date) > Date.now()) || "No upcoming date";
-
-  const formattedGarbageDate = formatDate(garbageDate);
-  const formattedRecycleDate = formatDate(recycleDate);
-  const formattedSpecialDate = formatDate(specialDate);
-  const formattedYardDate = formatDate(yardDate);
-
-  pickupDatesElement.innerHTML = `
-    <h3>Collection Schedule for ${address.address}</h3>
-    <div class="collection-item garbage">
-      <h4>Garbage: ${formattedGarbageDate}</h4>
-      <div class="days-remaining">${getDaysRemaining(garbageDate)}</div>
-    </div>
-    <div class="collection-item recycle">
-      <h4>Recycling: ${formattedRecycleDate}</h4>
-      <div class="days-remaining">${getDaysRemaining(recycleDate)}</div>
-    </div>
-    <div class="collection-item special">
-      <h4>Special: ${formattedSpecialDate}</h4>
-      <div class="days-remaining">${getDaysRemaining(specialDate)}</div>
-    </div>
-    <div class="collection-item yard">
-      <h4>Yard Waste: ${formattedYardDate}</h4>
-      <div class="days-remaining">${getDaysRemaining(yardDate)}</div>
-    </div>
-  `;
+  // Sync deletion to server
+  if (Notification.permission === "granted") {
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          await syncFavoritesToServer(subscription);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to sync deletion:", err);
+    }
+  }
 }
 
 // Format date for display
@@ -521,7 +503,7 @@ function displayDates(dates) {
   `;
 }
 
-// show the save to favorites button
+// Show the save to favorites button
 function showSaveButton(dates) {
   const address = addressInput.value;
   const favButton = document.createElement("button");
@@ -530,9 +512,9 @@ function showSaveButton(dates) {
   const isInFavorites = addressArray.some((obj) => obj.address === address);
   favButton.innerText = isInFavorites ? "Update in favorites" : "Add to favorites";
 
-  favButton.addEventListener("click", () => {
+  favButton.addEventListener("click", async () => {
+    // --- Existing Local Storage Logic ---
     const existingIndex = addressArray.findIndex((obj) => obj.address === address);
-
     const addressDatesObject = {
       address: address,
       datesArray: dates,
@@ -541,18 +523,19 @@ function showSaveButton(dates) {
 
     if (existingIndex === -1) {
       addressArray.push(addressDatesObject);
-      favButton.innerText = "Added to favorites!";
     } else {
       addressArray[existingIndex] = addressDatesObject;
-      favButton.innerText = "Updated in favorites!";
     }
-
     localStorage.setItem("addressArray", JSON.stringify(addressArray));
     renderFavoriteAddresses();
 
-    // Schedule notifications for this address if permissions are granted
+    // NEW: VAPID Sync Logic
     if (Notification.permission === "granted") {
-      scheduleNotificationsForAddress(addressDatesObject);
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        await syncFavoritesToServer(subscription);
+      }
     }
 
     favButton.innerText = "Saved!";
