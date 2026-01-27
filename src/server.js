@@ -114,13 +114,13 @@ setInterval(() => {
 function checkAndSendNotifications() {
   const now = new Date();
 
-  //Send the notifications at 6 PM only
-  if (now.getHours() !== 18) {
-    console.log(`[${now.toISOString()}] Not 6 PM yet. Skipping checks.`);
+  //Send the notifications at 10 PM only
+  if (now.getHours() !== 22) {
+    console.log(`[${now.toISOString()}] Not 10 PM yet. Skipping checks.`);
     return;
   }
 
-  console.log(`[${now.toISOString()}] 6 PM Trigger: Checking schedules...`);
+  console.log(`[${now.toISOString()}] 10 PM Trigger: Checking schedules...`);
 
   const subs = getSubscriptions();
   // Calculate "Tomorrow"
