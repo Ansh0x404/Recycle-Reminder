@@ -106,21 +106,50 @@ app.use(
 
 // NOTIFICATION LOGIC
 
-// Check every hour (3600000 ms) if we need to send notifications
-setInterval(() => {
-  checkAndSendNotifications();
-}, 60 * 60 * 1000);
+// Configuration
+const NOTIFICATION_HOUR = 18; // 6 PM
+const NOTIFICATION_MINUTE = 0;
 
-function checkAndSendNotifications() {
+// Start the scheduling loop
+scheduleNextCheck();
+
+function scheduleNextCheck() {
   const now = new Date();
+  const nextCheck = new Date(now);
 
-  //Send the notifications at 10 PM only
-  if (now.getHours() !== 22) {
-    console.log(`[${now.toISOString()}] Not 10 PM yet. Skipping checks.`);
-    return;
+  // Set target time today
+  nextCheck.setHours(NOTIFICATION_HOUR, NOTIFICATION_MINUTE, 0, 0);
+
+  // If the time has already passed today
+  if (now >= nextCheck) {
+    // Grace Period Logic:
+    // If it's less than 4 hours late (e.g., it's 7 PM or 8 PM), send it anyway!
+    const hoursLate = (now - nextCheck) / (1000 * 60 * 60);
+
+    if (hoursLate < 4) {
+      console.log("Server started late within grace period. Sending notification now.");
+      checkAndSendNotifications();
+    }
+
+    // Schedule for next day
+    nextCheck.setDate(nextCheck.getDate() + 1);
   }
 
-  console.log(`[${now.toISOString()}] 10 PM Trigger: Checking schedules...`);
+  const delay = nextCheck.getTime() - now.getTime();
+
+  console.log(`[${now.toLocaleString()}] Next notification check scheduled for: ${nextCheck.toLocaleString()} (in ${Math.round(delay / 1000 / 60)} mins)`);
+
+  setTimeout(() => {
+    // 1. Run the check
+    checkAndSendNotifications();
+
+    // 2. Schedule the next check (effectively creating a daily loop)
+    scheduleNextCheck();
+  }, delay);
+}
+
+function checkAndSendNotifications() {
+  console.log(`[${new Date().toLocaleString()}] Triggering scheduled notification check...`);
 
   const subs = getSubscriptions();
   // Calculate "Tomorrow"
