@@ -107,7 +107,7 @@ app.use(
 // NOTIFICATION LOGIC
 
 // Configuration
-const NOTIFICATION_HOUR = 1; // 1 AM
+const NOTIFICATION_HOUR = 18; // 6 PM
 const NOTIFICATION_MINUTE = 0;
 
 // Start the scheduling loop
