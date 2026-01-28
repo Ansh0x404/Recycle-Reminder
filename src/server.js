@@ -64,7 +64,7 @@ app.get("/api/vapidPublicKey", (req, res) => {
 
 // 2. Save User Subscription
 app.post("/api/subscribe", (req, res) => {
-  const { subscription, favorites } = req.body;
+  const { subscription } = req.body;
 
   if (!subscription || !subscription.endpoint) {
     return res.status(400).json({ error: "Invalid subscription" });
@@ -75,12 +75,12 @@ app.post("/api/subscribe", (req, res) => {
   // Update existing or add new (deduplicate based on endpoint)
   subs = subs.filter((s) => s.subscription.endpoint !== subscription.endpoint);
 
-  subs.push({ subscription, favorites, timestamp: Date.now() });
+  subs.push({ subscription, timestamp: Date.now() });
 
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(subs, null, 2));
     res.status(201).json({ message: "Subscription saved" });
-    console.log(`New subscription stored with ${favorites ? favorites.length : 0} addresses.`);
+    console.log(`New subscription stored.`);
   } catch (err) {
     res.status(500).json({ error: "Failed to save subscription" });
   }
@@ -107,7 +107,7 @@ app.use(
 // NOTIFICATION LOGIC
 
 // Configuration
-const NOTIFICATION_HOUR = 18; // 6 PM
+const NOTIFICATION_HOUR = 1; // 1 AM
 const NOTIFICATION_MINUTE = 0;
 
 // Start the scheduling loop
@@ -128,7 +128,7 @@ function scheduleNextCheck() {
 
     if (hoursLate < 4) {
       console.log("Server started late within grace period. Sending notification now.");
-      checkAndSendNotifications();
+      sendNotifications();
     }
 
     // Schedule for next day
@@ -141,68 +141,33 @@ function scheduleNextCheck() {
 
   setTimeout(() => {
     // 1. Run the check
-    checkAndSendNotifications();
+    sendNotifications();
 
     // 2. Schedule the next check (effectively creating a daily loop)
     scheduleNextCheck();
   }, delay);
 }
 
-function checkAndSendNotifications() {
+function sendNotifications() {
   console.log(`[${new Date().toLocaleString()}] Triggering scheduled notification check...`);
 
   const subs = getSubscriptions();
-  // Calculate "Tomorrow"
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = tomorrow.toDateString(); // e.g., "Fri Oct 10 2025"
 
   subs.forEach((user) => {
-    if (!user.favorites || !Array.isArray(user.favorites)) return;
-
-    // Check each favorite address
-    user.favorites.forEach((fav) => {
-      // fav contains { address: "...", dates: {...} }
-      if (!fav.dates) return;
-
-      checkType(user.subscription, fav.address, "Garbage", fav.dates.garbageDateArray, tomorrowStr);
-      checkType(user.subscription, fav.address, "Recycling", fav.dates.recycleDateArray, tomorrowStr);
-      checkType(user.subscription, fav.address, "Yard Waste", fav.dates.yardDateArray, tomorrowStr);
-      checkType(user.subscription, fav.address, "Special Collection", fav.dates.specialDateArray, tomorrowStr);
-    });
-  });
-}
-
-function checkType(subscription, addressName, type, dateArray, tomorrowStr) {
-  if (!dateArray) return;
-
-  // Check if any date in the array matches "tomorrow"
-  const hasCollection = dateArray.some((dateStr) => {
-    const d = new Date(dateStr);
-    return d.toDateString() === tomorrowStr;
-  });
-
-  if (hasCollection) {
+    // Send a GENERIC signals. Payload contains NO user data.
     const payload = JSON.stringify({
-      title: `${type} Collection Tomorrow`,
-      body: `Don't forget to put out the ${type} at ${addressName}!`,
-      icon: "/icon.png",
+      type: "CHECK_SCHEDULE",
+      timestamp: Date.now(),
     });
 
-    // Send Notification
-    webpush
-      .sendNotification(subscription, payload)
-      .then(() => console.log(`Sent ${type} alert to ${addressName}`))
-      .catch((err) => {
-        console.error("Push Error:", err.statusCode);
-        // If 410 or 404, the user removed the subscription, we should delete it
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          removeSubscription(subscription.endpoint);
-        } else {
-          console.error("Push Error:", err);
-        }
-      });
-  }
+    webpush.sendNotification(user.subscription, payload).catch((err) => {
+      console.error("Error sending notification:", err); // Add logging
+
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        removeSubscription(user.subscription.endpoint);
+      }
+    });
+  });
 }
 
 function removeSubscription(endpoint) {

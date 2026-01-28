@@ -37,6 +37,11 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
+          // Check if valid response before caching
+          if (!response || response.status !== 200 || response.type !== "basic") {
+            return response;
+          }
+
           // Clone the response
           const responseToCache = response.clone();
 
@@ -79,25 +84,76 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+// Helper function to get all addresses from IndexedDB
+function getAllAddressesFromDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("GarbageAppDB", 1);
+    request.onerror = () => resolve([]); // Fail safe
+    request.onsuccess = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("addresses")) {
+        resolve([]);
+        return;
+      }
+      const transaction = db.transaction(["addresses"], "readonly");
+      const store = transaction.objectStore("addresses");
+      const getAllRequest = store.getAll();
+      getAllRequest.onsuccess = () => resolve(getAllRequest.result);
+      getAllRequest.onerror = () => resolve([]);
+    };
+  });
+}
 // Push event - show notification
 self.addEventListener("push", (event) => {
   if (event.data) {
-    const data = event.data.json();
+    const payload = event.data.json();
 
-    const options = {
-      body: data.body,
-      icon: data.icon || "/icon.png",
-      vibrate: [100, 50, 100],
-      data: {
-        dateOfArrival: Date.now(),
-        primaryKey: 1,
-      },
-      // Actions can be added here
-    };
+    // If this is the "Check Schedule" signal from the server
+    if (payload.type === "CHECK_SCHEDULE") {
+      event.waitUntil(
+        getAllAddressesFromDB().then((addressArray) => {
+          if (!addressArray || addressArray.length === 0) return;
 
-    event.waitUntil(self.registration.showNotification(data.title, options));
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          const tomorrowStr = tomorrow.toDateString();
+
+          const notifications = [];
+
+          addressArray.forEach((fav) => {
+            const dates = fav.datesArray; // Ensure property name matches what you save in script.js
+            if (!dates) return;
+
+            checkType(fav.address, "Garbage", dates.garbageDateArray, tomorrowStr, notifications);
+            checkType(fav.address, "Recycling", dates.recycleDateArray, tomorrowStr, notifications);
+            checkType(fav.address, "Yard Waste", dates.yardDateArray, tomorrowStr, notifications);
+            checkType(fav.address, "Special", dates.specialDateArray, tomorrowStr, notifications);
+          });
+
+          // Show all generated notifications
+          return Promise.all(notifications.map((n) => self.registration.showNotification(n.title, n.options)));
+        })
+      );
+    }
   }
 });
+
+// Function to check collection types and prepare notifications
+function checkType(addressName, type, dateArray, tomorrowStr, notifications) {
+  if (!dateArray) return;
+  const hasCollection = dateArray.some((dStr) => new Date(dStr).toDateString() === tomorrowStr);
+
+  if (hasCollection) {
+    notifications.push({
+      title: `${type} Collection Tomorrow`,
+      options: {
+        body: `Don't forget the ${type} at ${addressName}`,
+        icon: "/icon.png",
+        tag: `${addressName}-${type}-${tomorrowStr}`, // Prevents duplicates
+      },
+    });
+  }
+}
 
 // Notification click event - handle notification clicks
 self.addEventListener("notificationclick", (event) => {

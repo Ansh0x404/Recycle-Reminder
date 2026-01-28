@@ -1,3 +1,45 @@
+// Index Db helpers
+const DB_NAME = "GarbageAppDB";
+const STORE_NAME = "addresses";
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "address" });
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e);
+  });
+}
+
+async function saveAddressToDB(item) {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).put(item);
+  return new Promise((resolve) => (tx.oncomplete = resolve));
+}
+
+async function getAddressesFromDB() {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, "readonly");
+  const store = tx.objectStore(STORE_NAME);
+  return new Promise((resolve) => {
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+  });
+}
+
+async function deleteAddressFromDB(addressKey) {
+  const db = await openDB();
+  const tx = db.transaction(STORE_NAME, "readwrite");
+  tx.objectStore(STORE_NAME).delete(addressKey);
+  return new Promise((resolve) => (tx.oncomplete = resolve));
+}
+
 // App state management
 const APP_STATE = {
   isLoading: false,
@@ -5,7 +47,7 @@ const APP_STATE = {
 };
 
 const proxy = "/api";
-var addressArray = JSON.parse(localStorage.getItem("addressArray")) || [];
+var addressArray = [];
 
 // DOM Elements
 let unorderButtons = document.getElementById("favAddressButtons");
@@ -27,7 +69,10 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 // Initialize application
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // Load addresses from IndexedDB
+  addressArray = await getAddressesFromDB();
+
   initializeUI();
   setupEventListeners();
   renderFavoriteAddresses();
@@ -95,26 +140,18 @@ async function requestNotificationPermission() {
   }
 }
 
-// Sync subscription and address to server
+// Sync subscriptions to server
 async function syncFavoritesToServer(subscription) {
-  // We send the whole list of favorites
-  // Map it to a clean structure expected by the server
-  const favoritesPayload = addressArray.map((item) => ({
-    address: item.address,
-    dates: item.datesArray,
-  }));
-
   await fetch("/api/subscribe", {
     method: "POST",
     body: JSON.stringify({
       subscription: subscription,
-      favorites: favoritesPayload, // Send Array instead of single address
     }),
     headers: {
       "Content-Type": "application/json",
     },
   });
-  console.log("Synced all favorites to server.");
+  console.log("Synced all subscriptions to server.");
 }
 
 // Setup event listeners
@@ -184,24 +221,11 @@ function renderFavoriteAddresses() {
 
 // Remove an address from favorites
 async function removeAddress(index) {
-  addressArray.splice(index, 1);
-  localStorage.setItem("addressArray", JSON.stringify(addressArray));
-  renderFavoriteAddresses();
+  const item = addressArray[index];
+  await deleteAddressFromDB(item.address); // Remove from DB
 
-  // Sync deletion to server
-  if (Notification.permission === "granted") {
-    try {
-      const registration = await navigator.serviceWorker.getRegistration();
-      if (registration) {
-        const subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          await syncFavoritesToServer(subscription);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to sync deletion:", err);
-    }
-  }
+  addressArray.splice(index, 1); // Remove from memory
+  renderFavoriteAddresses();
 }
 
 // Format date for display
@@ -454,7 +478,7 @@ function extractDates(pickupDateJson) {
     if (pickupTimestamp > Date.now()) {
       if (element.CollectionTypeDisplayName === "3-Container Exemption garbage collection" || element.CollectionTypeCode === "11") {
         dates.specialDateArray.push(pickupDate);
-      } else if (element.CollectionTypeDisplayName === "Yard Waste collection wee" || element.CollectionTypeCode === "30") {
+      } else if (element.CollectionTypeDisplayName === "Yard Waste collection week" || element.CollectionTypeCode === "30") {
         dates.yardDateArray.push(pickupDate);
       }
     }
@@ -513,23 +537,24 @@ function showSaveButton(dates) {
   favButton.innerText = isInFavorites ? "Update in favorites" : "Add to favorites";
 
   favButton.addEventListener("click", async () => {
-    // --- Existing Local Storage Logic ---
-    const existingIndex = addressArray.findIndex((obj) => obj.address === address);
     const addressDatesObject = {
       address: address,
       datesArray: dates,
       lastUpdated: new Date().toISOString(),
     };
 
+    const existingIndex = addressArray.findIndex((obj) => obj.address === address);
     if (existingIndex === -1) {
       addressArray.push(addressDatesObject);
     } else {
       addressArray[existingIndex] = addressDatesObject;
     }
-    localStorage.setItem("addressArray", JSON.stringify(addressArray));
+
+    // Save to IndexedDB
+    await saveAddressToDB(addressDatesObject);
     renderFavoriteAddresses();
 
-    // NEW: VAPID Sync Logic
+    // VAPID Sync Logic
     if (Notification.permission === "granted") {
       const registration = await navigator.serviceWorker.getRegistration();
       const subscription = await registration.pushManager.getSubscription();
