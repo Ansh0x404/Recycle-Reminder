@@ -42,13 +42,16 @@ self.addEventListener("fetch", (event) => {
             return response;
           }
 
-          // Clone the response
-          const responseToCache = response.clone();
+          // FIX: Only cache GET requests. The Cache API throws error on POST.
+          if (event.request.method === "GET") {
+            // Clone the response
+            const responseToCache = response.clone();
 
-          // Cache the successful API response
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+            // Cache the successful API response
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
 
           return response;
         })

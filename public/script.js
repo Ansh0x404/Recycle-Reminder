@@ -17,10 +17,23 @@ function openDB() {
 }
 
 async function saveAddressToDB(item) {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, "readwrite");
-  tx.objectStore(STORE_NAME).put(item);
-  return new Promise((resolve) => (tx.oncomplete = resolve));
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+
+      const request = store.put(item);
+
+      request.onsuccess = () => resolve(); // Success
+      request.onerror = () => reject(request.error); // Fail
+      tx.oncomplete = () => resolve(); // Transaction Success
+      tx.onerror = () => reject(tx.error); // Transaction Fail
+    });
+  } catch (err) {
+    console.error("IndexedDB Save Error:", err);
+    alert("Failed to save to database. storage might be full.");
+  }
 }
 
 async function getAddressesFromDB() {
