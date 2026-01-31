@@ -1,4 +1,4 @@
-const CACHE_NAME = "garbage-collector-v1";
+const CACHE_NAME = "recycle-reminder-v1";
 
 // Assets to cache immediately
 const CORE_ASSETS = ["/", "/index.html", "/styles.css", "/script.js", "/icon.png", "/manifest.json"];
