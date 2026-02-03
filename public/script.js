@@ -89,15 +89,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   initializeUI();
   setupEventListeners();
   renderFavoriteAddresses();
-  updateConnectionStatus();
+  // updateConnectionStatus();
 });
 
 // Setup core UI elements
 function initializeUI() {
   // Create connection status indicator
-  const statusElement = document.createElement("div");
-  statusElement.id = "connectionStatus";
-  document.body.prepend(statusElement);
+  // const statusElement = document.createElement("div");
+  // statusElement.id = "connectionStatus";
+  // document.body.prepend(statusElement);
 
   // Get the action buttons container
   const actionButtonsContainer = document.getElementById("actionButtons");
@@ -170,8 +170,8 @@ async function syncFavoritesToServer(subscription) {
 // Setup event listeners
 function setupEventListeners() {
   // Connection status listeners
-  window.addEventListener("online", updateConnectionStatus);
-  window.addEventListener("offline", updateConnectionStatus);
+  // window.addEventListener("online", updateConnectionStatus);
+  // window.addEventListener("offline", updateConnectionStatus);
 
   // Search on enter key
   addressInput.addEventListener("keypress", (e) => {
@@ -182,18 +182,18 @@ function setupEventListeners() {
 }
 
 // Update and display connection status
-function updateConnectionStatus() {
-  APP_STATE.connectionStatus = navigator.onLine;
-  const statusElement = document.getElementById("connectionStatus");
+// function updateConnectionStatus() {
+//   APP_STATE.connectionStatus = navigator.onLine;
+//   const statusElement = document.getElementById("connectionStatus");
 
-  if (APP_STATE.connectionStatus) {
-    statusElement.innerText = "🟢 Online";
-    statusElement.className = "online-status";
-  } else {
-    statusElement.innerText = "🔴 Offline";
-    statusElement.className = "offline-status";
-  }
-}
+//   if (APP_STATE.connectionStatus) {
+//     statusElement.innerText = "🟢 Online";
+//     statusElement.className = "online-status";
+//   } else {
+//     statusElement.innerText = "🔴 Offline";
+//     statusElement.className = "offline-status";
+//   }
+// }
 
 function renderFavoriteAddresses() {
   unorderButtons.innerHTML = "";
@@ -269,10 +269,10 @@ function getDaysRemaining(dateString) {
 }
 
 function getAddress() {
-  if (!APP_STATE.connectionStatus) {
-    showOfflineMessage(addressButtonsElement);
-    return;
-  }
+  // if (!APP_STATE.connectionStatus) {
+  //   showOfflineMessage(addressButtonsElement);
+  //   return;
+  // }
 
   const userInput = addressInput.value.trim();
   if (!userInput) return;
@@ -328,10 +328,10 @@ function setAddress(buttonValue) {
 }
 
 function getAddressInfo() {
-  if (!APP_STATE.connectionStatus) {
-    showOfflineMessage(pickupDatesElement);
-    return;
-  }
+  // if (!APP_STATE.connectionStatus) {
+  //   showOfflineMessage(pickupDatesElement);
+  //   return;
+  // }
 
   showLoading("pickupDates");
   const userAddress = addressInput.value;

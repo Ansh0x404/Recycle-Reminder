@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Recycle Reminder</title>
     <meta name="description" content="Track your recycling and waste collection schedule with notifications" />
-    <meta name="theme-color" content="#1b5e20" />
+    <meta name="theme-color" content="#121212" />
 
     <!-- PWA Configuration -->
     <link rel="manifest" href="manifest.json" />
@@ -63,21 +63,19 @@
           <!-- Search Section -->
           <section class="search-section">
             <h2 class="section-title">Find Your Address</h2>
-            <div class="search-container">
-              <label for="address" class="search-label">Enter your address</label>
-              <div class="input-group">
-                <input type="text" id="address" name="address" placeholder="e.g., 123 Main Street" class="search-input" autocomplete="street-address" />
-                <button id="searchButton" class="search-button" onclick="getAddress()">
-                  <span class="button-icon">🔍</span>
-                  <span class="button-text">Search</span>
-                </button>
-              </div>
+            <div class="input-group">
+              <input type="text" id="address" name="address" placeholder="e.g., 123 Main Street" class="search-input" autocomplete="street-address" />
+              <button id="searchButton" class="search-button" onclick="getAddress()">
+                <span class="button-icon">🔍</span>
+                <span class="button-text">Search</span>
+              </button>
             </div>
+
+            <div id="addressButtons" class="address-results"></div>
           </section>
 
           <!-- Results Section -->
           <section class="results-section">
-            <div id="addressButtons" class="address-results"></div>
             <div id="pickupDates" class="pickup-dates"></div>
           </section>
 
