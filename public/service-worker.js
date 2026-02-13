@@ -1,7 +1,7 @@
 const CACHE_NAME = "recycle-reminder-v1";
 
 // Assets to cache immediately
-const CORE_ASSETS = ["/", "/index.html", "/styles.css", "/script.js", "/icon.png", "/manifest.json"];
+const CORE_ASSETS = ["/", "/index.html", "/styles.css", "/script.js", "/recycle.png", "/manifest.json"];
 
 // Install event - cache core assets
 self.addEventListener("install", (event) => {
@@ -151,7 +151,7 @@ function checkType(addressName, type, dateArray, tomorrowStr, notifications) {
       title: `${type} Collection Tomorrow`,
       options: {
         body: `Don't forget the ${type} at ${addressName}`,
-        icon: "/icon.png",
+        icon: "/recycle.png",
         tag: `${addressName}-${type}-${tomorrowStr}`, // Prevents duplicates
       },
     });

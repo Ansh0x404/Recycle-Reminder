@@ -7,7 +7,7 @@
   "start_url": "/index.html",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/recycle.png",
       "sizes": "192x192",
       "type": "image/png"
     }
