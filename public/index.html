@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -29,6 +29,15 @@
             .catch((error) => {
               console.log("Service Worker registration failed:", error);
             });
+        });
+
+        // NEW: Listen for the "controlling" service worker changing
+        // This triggers when self.skipWaiting() runs in the SW
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          if (refreshing) return;
+          refreshing = true;
+          window.location.reload();
         });
       }
     </script>

@@ -5,28 +5,35 @@ const CORE_ASSETS = ["/", "/index.html", "/styles.css", "/script.js", "/recycle.
 
 // Install event - cache core assets
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
+
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log("Caching core assets");
       return cache.addAll(CORE_ASSETS);
-    })
+    }),
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener("activate", (event) => {
+  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((cacheName) => {
-            return cacheName !== CACHE_NAME;
-          })
-          .map((cacheName) => {
-            return caches.delete(cacheName);
-          })
-      );
-    })
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (!cacheWhitelist.includes(cacheName)) {
+              return caches.delete(cacheName);
+            }
+          }),
+        );
+      })
+      .then(() => {
+        // Force the service worker to take control of all clients immediately
+        return self.clients.claim();
+      }),
   );
 });
 
@@ -58,7 +65,7 @@ self.addEventListener("fetch", (event) => {
         .catch(() => {
           // If network request fails, try to serve from cache
           return caches.match(event.request);
-        })
+        }),
     );
   }
   // For static assets
@@ -82,7 +89,7 @@ self.addEventListener("fetch", (event) => {
 
           return response;
         });
-      })
+      }),
     );
   }
 });
@@ -135,7 +142,7 @@ self.addEventListener("push", (event) => {
 
           // Show all generated notifications
           return Promise.all(notifications.map((n) => self.registration.showNotification(n.title, n.options)));
-        })
+        }),
       );
     }
   }
@@ -168,6 +175,6 @@ self.addEventListener("notificationclick", (event) => {
         if (client.url === "/" && "focus" in client) return client.focus();
       }
       if (clients.openWindow) return clients.openWindow("/");
-    })
+    }),
   );
 });
