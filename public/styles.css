@@ -31,15 +31,15 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   background-color: var(--surface-dark);
-  background-image:
-    radial-gradient(at 0% 0%, rgba(46, 125, 50, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(66, 165, 245, 0.1) 0px, transparent 50%);
+  background-image: radial-gradient(at 0% 0%, rgba(46, 125, 50, 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(66, 165, 245, 0.1) 0px, transparent 50%);
   background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-header {
@@ -72,7 +72,7 @@ body {
 }
 
 h1 {
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.5px;
@@ -86,11 +86,16 @@ h1 {
 .container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-main {
   padding: 40px 0;
+  flex: 1;
+  display: flex;
 }
 
 /* The Main Card */
@@ -104,18 +109,62 @@ h1 {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   /* Contains children */
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .section-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 1.1rem;
   font-weight: 500;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin: 30px 0 15px 0;
+  /* margin: 30px 0 15px 0; */
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 10px;
+  padding-bottom: 5px;
+}
+
+/* SUBSECTION CONTAINER (Groups Saved & Results) */
+.content-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+
+  /* Visual Distinctness */
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 25px;
+}
+
+.search-section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+
+  /* Visual Distinctness */
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 25px;
+}
+
+.results-column {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .content-grid {
+    padding: 15px;
+    gap: 20px;
+  }
 }
 
 /* ACTION BUTTONS (Top Row) */
@@ -123,7 +172,6 @@ h1 {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-bottom: 20px;
 }
 
 #notificationButton {
@@ -181,7 +229,7 @@ h1 {
   text-align: left;
   font-size: 1rem;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .delete-btn {
@@ -210,6 +258,7 @@ h1 {
 /* SEARCH INPUT */
 .input-group {
   display: flex;
+  align-items: stretch;
   gap: 10px;
 }
 
@@ -221,7 +270,7 @@ h1 {
   padding: 14px 20px;
   border-radius: 12px;
   font-size: 1rem;
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   transition: border-color 0.3s;
 }
 
@@ -234,7 +283,7 @@ h1 {
   background: var(--primary-gradient);
   color: white;
   border: none;
-  padding: 0 25px;
+  padding: 12px 25px;
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -272,6 +321,25 @@ h1 {
   transition: background 0.2s;
 }
 
+.address-dropdown::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.address-dropdown::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.address-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  border: 1px solid #1e1e1e;
+}
+
+.address-dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--surface-card-hover);
+}
+
 .address-dropdown li button:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-primary);
@@ -287,10 +355,11 @@ h1 {
 
 .pickup-dates h3 {
   grid-column: 1 / -1;
-  font-family: 'Poppins', sans-serif;
-  margin-bottom: 10px;
+  font-family: "Poppins", sans-serif;
+  /* margin-bottom: 10px; */
 }
 
+/* Collection Item Layout */
 .collection-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-color);
@@ -298,11 +367,14 @@ h1 {
   padding: 20px;
   position: relative;
   overflow: hidden;
+  display: flex;
+  gap: 4px;
+  justify-content: space-around;
 }
 
 /* Colored accent bars on the left */
 .collection-item::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -336,27 +408,54 @@ h1 {
   margin-bottom: 4px;
 }
 
-.days-remaining {
-  font-size: 1.25rem;
+.collection-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.collection-label {
+  font-family: "Poppins", sans-serif;
+  font-size: 0.85rem;
   font-weight: 600;
-  font-family: 'Poppins', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
 }
 
-.today,
-.tomorrow,
-.days {
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+.collection-date {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
+/* Right Side: Days Badge */
+.days-badge {
+  background: rgba(255, 255, 255, 0.08);
+  color: #69f0ae;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 10px 15px;
+  min-width: 90px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Poppins", sans-serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Badge Text Colors */
 .today {
   color: var(--status-garbage);
   animation: pulse 2s infinite;
 }
-
 .tomorrow {
   color: var(--status-special);
 }
-
 .days {
   color: #69f0ae;
 }

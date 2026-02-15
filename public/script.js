@@ -265,7 +265,7 @@ function getDaysRemaining(dateString) {
 
   if (diffDays === 0) return '<span class="today">Today!</span>';
   if (diffDays === 1) return '<span class="tomorrow">Tomorrow!</span>';
-  return `<span class="days">${diffDays} days</span>`;
+  return `${diffDays} <br/> days`;
 }
 
 function getAddress() {
@@ -522,20 +522,40 @@ function displayDates(dates) {
   pickupDatesElement.innerHTML = `
     <h3>Collection Schedule</h3>
     <div class="collection-item garbage">
-      <h4>Garbage: ${formattedGarbageDate}</h4>
-      <div class="days-remaining">${getDaysRemaining(garbageDate)}</div>
+      <div class="collection-info">
+        <span class="collection-label">Garbage Collection</span>
+        <span class="collection-date">${formattedGarbageDate}</span>
+      </div>
+      <div class="days-badge">
+        ${getDaysRemaining(garbageDate)}
+      </div>
     </div>
     <div class="collection-item recycle">
-      <h4>Recycling: ${formattedRecycleDate}</h4>
-      <div class="days-remaining">${getDaysRemaining(recycleDate)}</div>
+      <div class="collection-info">
+        <span class="collection-label">Recycling & Green Bin</span>
+        <span class="collection-date">${formattedRecycleDate}</span>
+      </div>
+      <div class="days-badge">
+        ${getDaysRemaining(recycleDate)}
+      </div>
     </div>
     <div class="collection-item special">
-      <h4>Special: ${formattedSpecialDate}</h4>
-      <div class="days-remaining">${getDaysRemaining(specialDate)}</div>
+      <div class="collection-info">
+        <span class="collection-label">3-Container Exemption</span>
+        <span class="collection-date">${formattedSpecialDate}</span>
+      </div>
+      <div class="days-badge">
+        ${getDaysRemaining(specialDate)}
+      </div>
     </div>
     <div class="collection-item yard">
-      <h4>Yard Waste: ${formattedYardDate}</h4>
-      <div class="days-remaining">${getDaysRemaining(yardDate)}</div>
+      <div class="collection-info">
+        <span class="collection-label">Yard Waste Week</span>
+        <span class="collection-date">${formattedYardDate}</span>
+      </div>
+      <div class="days-badge">
+        ${getDaysRemaining(yardDate)}
+      </div>
     </div>
   `;
 }

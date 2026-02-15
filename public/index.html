@@ -55,13 +55,7 @@
           <!-- Action Buttons Container -->
           <div id="actionButtons" class="action-buttons"></div>
 
-          <!-- Favorites Section -->
-          <section class="favorites-section">
-            <h2 class="section-title">Saved Addresses</h2>
-            <ul id="favAddressButtons" class="favorites-list"></ul>
-          </section>
-
-          <!-- Search Section -->
+          <!-- Search Section (Moved to Top) -->
           <section class="search-section">
             <h2 class="section-title">Find Your Address</h2>
             <div class="input-group">
@@ -75,13 +69,24 @@
             <div id="addressButtons" class="address-results"></div>
           </section>
 
-          <!-- Results Section -->
-          <section class="results-section">
-            <div id="pickupDates" class="pickup-dates"></div>
-          </section>
+          <!-- Content Grid: Favorites + Results -->
+          <div class="content-grid">
+            <!-- Favorites Section -->
+            <section class="favorites-section">
+              <h2 class="section-title">Saved Addresses</h2>
+              <ul id="favAddressButtons" class="favorites-list"></ul>
+            </section>
 
-          <!-- Save Button Container -->
-          <div id="favButtonDiv" class="save-container"></div>
+            <!-- Results Column -->
+            <div class="results-column">
+              <section class="results-section">
+                <div id="pickupDates" class="pickup-dates"></div>
+              </section>
+
+              <!-- Save Button Container -->
+              <div id="favButtonDiv" class="save-container"></div>
+            </div>
+          </div>
         </div>
       </div>
     </main>
@@ -89,7 +94,7 @@
     <!-- Footer -->
     <footer class="app-footer">
       <div class="container">
-        <p>&copy; 2025 Recycle Reminder | Stay Updated</p>
+        <p>&copy; 2026 Recycle Reminder | Stay Updated</p>
       </div>
     </footer>
 
