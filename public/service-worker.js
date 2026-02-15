@@ -1,4 +1,4 @@
-const CACHE_NAME = "recycle-reminder-v1";
+const CACHE_NAME = "recycle-reminder-v2";
 
 // Assets to cache immediately
 const CORE_ASSETS = ["/", "/index.html", "/styles.css", "/script.js", "/recycle.png", "/manifest.json"];
