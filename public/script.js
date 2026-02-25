@@ -94,11 +94,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 // Setup core UI elements
 function initializeUI() {
-  // Create connection status indicator
-  // const statusElement = document.createElement("div");
-  // statusElement.id = "connectionStatus";
-  // document.body.prepend(statusElement);
-
   // Get the action buttons container
   const actionButtonsContainer = document.getElementById("actionButtons");
 
@@ -197,7 +192,7 @@ async function requestNotificationPermission() {
 
       console.log("Browser subscribed:", subscription);
 
-      // C. Send this subscription + Current Favorites to your Server
+      // C. Send this subscription to your Server
       await syncFavoritesToServer(subscription);
     } catch (err) {
       console.error("Error subscribing to push notifications:", err);
@@ -221,10 +216,6 @@ async function syncFavoritesToServer(subscription) {
 
 // Setup event listeners
 function setupEventListeners() {
-  // Connection status listeners
-  // window.addEventListener("online", updateConnectionStatus);
-  // window.addEventListener("offline", updateConnectionStatus);
-
   // Search on enter key
   addressInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") {
@@ -232,20 +223,6 @@ function setupEventListeners() {
     }
   });
 }
-
-// Update and display connection status
-// function updateConnectionStatus() {
-//   APP_STATE.connectionStatus = navigator.onLine;
-//   const statusElement = document.getElementById("connectionStatus");
-
-//   if (APP_STATE.connectionStatus) {
-//     statusElement.innerText = "🟢 Online";
-//     statusElement.className = "online-status";
-//   } else {
-//     statusElement.innerText = "🔴 Offline";
-//     statusElement.className = "offline-status";
-//   }
-// }
 
 function renderFavoriteAddresses() {
   unorderButtons.innerHTML = "";
@@ -321,11 +298,6 @@ function getDaysRemaining(dateString) {
 }
 
 function getAddress() {
-  // if (!APP_STATE.connectionStatus) {
-  //   showOfflineMessage(addressButtonsElement);
-  //   return;
-  // }
-
   const userInput = addressInput.value.trim();
   if (!userInput) return;
 
@@ -380,11 +352,6 @@ function setAddress(buttonValue) {
 }
 
 function getAddressInfo() {
-  // if (!APP_STATE.connectionStatus) {
-  //   showOfflineMessage(pickupDatesElement);
-  //   return;
-  // }
-
   showLoading("pickupDates");
   const userAddress = addressInput.value;
   const desti2 = "/ZoneFinder/Map/GetSearch?searchString=";
