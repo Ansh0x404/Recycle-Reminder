@@ -116,6 +116,58 @@ function initializeUI() {
 
   notificationButton.addEventListener("click", requestNotificationPermission);
   actionButtonsContainer.appendChild(notificationButton);
+
+  // Install App Logic
+  let deferredPrompt;
+  const installButton = document.createElement("button");
+  installButton.id = "installButton";
+  installButton.textContent = "Install App";
+  installButton.style.display = "none"; // Hidden by default
+
+  // Check if app is already installed (running in standalone mode)
+  if (window.matchMedia("(display-mode: standalone)").matches) {
+    installButton.textContent = "App Installed";
+    installButton.style.display = "block";
+    installButton.className = "appp-installed";
+    installButton.disabled = true;
+  }
+
+  // Listen for the "beforeinstallprompt" event
+  window.addEventListener("beforeinstallprompt", (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later.
+    deferredPrompt = e;
+    // Update UI notify the user they can install the PWA
+    installButton.style.display = "block";
+    installButton.textContent = "Install App";
+    installButton.disabled = false;
+  });
+
+  // Handle the install button click
+  installButton.addEventListener("click", async () => {
+    if (deferredPrompt) {
+      // Show the install prompt
+      deferredPrompt.prompt();
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to the install prompt: ${outcome}`);
+      // We've used the prompt, and can't use it again, throw it away
+      deferredPrompt = null;
+    }
+  });
+
+  // Listen for the "appinstalled" event
+  window.addEventListener("appinstalled", () => {
+    // Hide the app-provided install promotion
+    installButton.textContent = "App Installed";
+    installButton.className = "app-installed";
+    installButton.disabled = true;
+    deferredPrompt = null;
+    console.log("PWA was installed");
+  });
+
+  actionButtonsContainer.appendChild(installButton);
 }
 
 // Request notification permission

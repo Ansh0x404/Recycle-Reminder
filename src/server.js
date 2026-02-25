@@ -101,7 +101,7 @@ app.use(
       "^/api": "", // Remove /api prefix when forwarding
     },
     secure: true,
-  })
+  }),
 );
 
 // NOTIFICATION LOGIC

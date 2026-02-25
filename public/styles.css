@@ -170,11 +170,12 @@ h1 {
 /* ACTION BUTTONS (Top Row) */
 .action-buttons {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 10px;
 }
 
-#notificationButton {
+#notificationButton,
+#installButton {
   background: rgba(255, 255, 255, 0.1);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
@@ -186,11 +187,13 @@ h1 {
   cursor: pointer;
 }
 
-#notificationButton:hover {
+#notificationButton:hover,
+#installButton:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
-#notificationButton.notification-enabled {
+#notificationButton.notification-enabled,
+#installButton.app-installed {
   background: rgba(0, 200, 83, 0.2);
   color: #69f0ae;
   border-color: rgba(0, 200, 83, 0.4);
@@ -240,7 +243,9 @@ h1 {
   cursor: pointer;
   font-weight: bold;
   font-size: 1.1rem;
-  transition: color 0.2s, background 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s;
 }
 
 .delete-btn:hover {
@@ -493,7 +498,9 @@ h1 {
   font-weight: 600;
   box-shadow: 0 4px 15px rgba(101, 31, 255, 0.4);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 }
 
 .save-button:hover {
