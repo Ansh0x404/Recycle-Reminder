@@ -113,7 +113,24 @@ function getAllAddressesFromDB() {
     };
   });
 }
-// Push event - show notification
+// Helper function to update addresses in IndexedDB
+function updateAddressInDB(updatedAddress) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("GarbageAppDB", 1);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = (event) => {
+      const db = event.target.result;
+      const transaction = db.transaction(["addresses"], "readwrite");
+      const store = transaction.objectStore("addresses");
+      const putRequest = store.put(updatedAddress);
+      
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    };
+  });
+}
+
+// Push event - show notification and cleanup old dates
 self.addEventListener("push", (event) => {
   if (event.data) {
     const payload = event.data.json();
@@ -121,28 +138,81 @@ self.addEventListener("push", (event) => {
     // If this is the "Check Schedule" signal from the server
     if (payload.type === "CHECK_SCHEDULE") {
       event.waitUntil(
-        getAllAddressesFromDB().then((addressArray) => {
-          if (!addressArray || addressArray.length === 0) return;
+        new Promise(async (resolve, reject) => {
+          try {
+            const addressArray = await getAllAddressesFromDB();
+            if (!addressArray || addressArray.length === 0) {
+              resolve();
+              return;
+            }
 
-          const tomorrow = new Date();
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          const tomorrowStr = tomorrow.toDateString();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Normalize to start of day
+            
+            // For notification check (Tomorrow)
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = tomorrow.toDateString();
 
-          const notifications = [];
+            const notifications = [];
+            const cleanupPromises = [];
 
-          addressArray.forEach((fav) => {
-            const dates = fav.datesArray; // Ensure property name matches what you save in script.js
-            if (!dates) return;
+            for (const fav of addressArray) {
+              const dates = fav.datesArray; 
+              if (!dates) continue;
 
-            checkType(fav.address, "Garbage", dates.garbageDateArray, tomorrowStr, notifications);
-            checkType(fav.address, "Recycling", dates.recycleDateArray, tomorrowStr, notifications);
-            checkType(fav.address, "Yard Waste", dates.yardDateArray, tomorrowStr, notifications);
-            checkType(fav.address, "Special", dates.specialDateArray, tomorrowStr, notifications);
-          });
+              // 1. Generate Notifications
+              checkType(fav.address, "Garbage", dates.garbageDateArray, tomorrowStr, notifications);
+              checkType(fav.address, "Recycling", dates.recycleDateArray, tomorrowStr, notifications);
+              checkType(fav.address, "Yard Waste", dates.yardDateArray, tomorrowStr, notifications);
+              checkType(fav.address, "Special", dates.specialDateArray, tomorrowStr, notifications);
 
-          // Show all generated notifications
-          return Promise.all(notifications.map((n) => self.registration.showNotification(n.title, n.options)));
-        }),
+              // 2. Cleanup Past Dates
+              let modified = false;
+
+              // Helper to filter dates
+              const filterDates = (dateArr) => {
+                if (!dateArr || !Array.isArray(dateArr)) return [];
+                const originalLength = dateArr.length;
+                
+                // Keep dates that are today or in the future
+                // We use new Date(dStr) to parse the stored string
+                const filtered = dateArr.filter((dStr) => {
+                  const d = new Date(dStr);
+                  d.setHours(0, 0, 0, 0); // normalize
+                  return d.getTime() >= today.getTime();
+                });
+
+                if (filtered.length !== originalLength) {
+                  modified = true;
+                }
+                return filtered;
+              };
+
+              fav.datesArray.garbageDateArray = filterDates(dates.garbageDateArray);
+              fav.datesArray.recycleDateArray = filterDates(dates.recycleDateArray);
+              fav.datesArray.yardDateArray = filterDates(dates.yardDateArray);
+              fav.datesArray.specialDateArray = filterDates(dates.specialDateArray);
+
+              if (modified) {
+                // If we changed arrays, save updated object back
+                cleanupPromises.push(updateAddressInDB(fav));
+              }
+            }
+
+            // Wait for notifications and cleanup to finish
+            await Promise.all([
+               ...notifications.map((n) => self.registration.showNotification(n.title, n.options)),
+               ...cleanupPromises
+            ]);
+            
+            resolve();
+          } catch (err) {
+            console.error("Error in push event:", err);
+            // Even if cleanup fails, resolve so SW doesn't stay alive forever
+            resolve();
+          }
+        })
       );
     }
   }
