@@ -216,11 +216,21 @@ async function syncFavoritesToServer(subscription) {
 
 // Setup event listeners
 function setupEventListeners() {
-  // Search on enter key
-  addressInput.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
+  // // Search on enter key
+  // addressInput.addEventListener("keypress", (e) => {
+  //   //if (e.key === "Enter") {
+  //   getAddress();
+  //   //}
+  // });
+
+  let timeoutId;
+
+  addressInput.addEventListener("input", () => {
+    clearTimeout(timeoutId);
+
+    timeoutId = setTimeout(() => {
       getAddress();
-    }
+    }, 500); // waits 500ms after user stops typing
   });
 }
 
@@ -299,7 +309,7 @@ function getDaysRemaining(dateString) {
 
 function getAddress() {
   const userInput = addressInput.value.trim();
-  if (!userInput) return;
+  // if (!userInput) return;
 
   showLoading("addressButtons");
 
